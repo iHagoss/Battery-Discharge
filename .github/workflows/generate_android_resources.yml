@@ -1,0 +1,274 @@
+name: Generate Android Resources
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/generate_android_resources.yml'
+
+jobs:
+  generate-resources:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      MAIN_DIR: app/src/main
+      RESOURCE_DONE_FLAG: app/src/main/.resources_generated
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if resources are already generated
+        id: check_resources
+        run: |
+          if [ -f "${RESOURCE_DONE_FLAG}" ]; then
+            echo "already=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "already=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate resources if needed
+        if: steps.check_resources.outputs.already == 'false'
+        run: |
+          set -e
+          mkdir -p $MAIN_DIR/res/xml
+          mkdir -p $MAIN_DIR/res/values
+          mkdir -p $MAIN_DIR/res/mipmap-anydpi-v26
+
+          # AndroidManifest.xml
+          cat > $MAIN_DIR/AndroidManifest.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.batterydischarge.calculator">
+    <uses-permission android:name="android.permission.BATTERY_STATS" />
+    <uses-permission android:name="android.permission.DEVICE_POWER" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <uses-permission android:name="android.permission.ACCESS_SUPERUSER" />
+    <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" />
+    <uses-permission android:name="android.permission.DUMP" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <application
+        android:name=".BatteryDischargeApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.BatteryDischarge"
+        android:requestLegacyExternalStorage="true"
+        android:hardwareAccelerated="true"
+        tools:targetApi="34">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.BatteryDischarge.NoActionBar"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.BATTERY_CHANGED" />
+                <action android:name="android.intent.action.POWER_CONNECTED" />
+                <action android:name="android.intent.action.POWER_DISCONNECTED" />
+            </intent-filter>
+        </activity>
+        <service
+            android:name=".BatteryMonitorService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="systemExempted"
+            android:stopWithTask="false" />
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter android:priority="1000">
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".BatteryStateReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BATTERY_CHANGED" />
+                <action android:name="android.intent.action.POWER_CONNECTED" />
+                <action android:name="android.intent.action.POWER_DISCONNECTED" />
+                <action android:name="android.intent.action.BATTERY_LOW" />
+                <action android:name="android.intent.action.BATTERY_OKAY" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".DeviceAdminReceiver"
+            android:exported="true"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="\${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+</manifest>
+EOF
+
+          # values/strings.xml
+          cat > $MAIN_DIR/res/values/strings.xml <<'EOF'
+<resources>
+    <string name="app_name">Battery Discharge Calculator</string>
+</resources>
+EOF
+
+          # values/styles.xml
+          cat > $MAIN_DIR/res/values/styles.xml <<'EOF'
+<resources>
+    <style name="Theme.BatteryDischarge" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+        <!-- Customize your theme here. -->
+    </style>
+    <style name="Theme.BatteryDischarge.NoActionBar" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- Customize your theme here. -->
+    </style>
+</resources>
+EOF
+
+          # xml/backup_rules.xml
+          cat > $MAIN_DIR/res/xml/backup_rules.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- TODO: Define backup rules -->
+</full-backup-content>
+EOF
+
+          # xml/data_extraction_rules.xml
+          cat > $MAIN_DIR/res/xml/data_extraction_rules.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<rules>
+    <!-- TODO: Define data extraction rules -->
+</rules>
+EOF
+
+          # xml/device_admin.xml
+          cat > $MAIN_DIR/res/xml/device_admin.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<device-admin>
+    <!-- TODO: Define device admin policies -->
+</device-admin>
+EOF
+
+          # xml/file_paths.xml
+          cat > $MAIN_DIR/res/xml/file_paths.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- TODO: Define file provider paths -->
+</paths>
+EOF
+
+          # mipmap-anydpi-v26/ic_launcher.xml
+          cat > $MAIN_DIR/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF0000"
+        android:pathData="M0,0h108v108h-108z"/>
+</vector>
+EOF
+
+          # mipmap-anydpi-v26/ic_launcher_round.xml
+          cat > $MAIN_DIR/res/mipmap-anydpi-v26/ic_launcher_round.xml <<'EOF'
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#00FF00"
+        android:pathData="M54,0a54,54 0 1,0 0,108a54,54 0 1,0 0,-108"/>
+</vector>
+EOF
+
+          # Mark resources as generated
+          touch "${RESOURCE_DONE_FLAG}"
+
+      - name: Save resources as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android_resources
+          path: |
+            app/src/main/AndroidManifest.xml
+            app/src/main/res/values/strings.xml
+            app/src/main/res/values/styles.xml
+            app/src/main/res/xml/backup_rules.xml
+            app/src/main/res/xml/data_extraction_rules.xml
+            app/src/main/res/xml/device_admin.xml
+            app/src/main/res/xml/file_paths.xml
+            app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+            app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+            app/src/main/.resources_generated
+          retention-days: 7
+
+  # Optional: Try to build the APK, but do not fail the job if it fails
+  build-apk:
+    needs: generate-resources
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore generated resources
+        uses: actions/download-artifact@v4
+        with:
+          name: android_resources
+          path: app/src/main
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build APK (ignore failure)
+        run: ./gradlew :app:assembleRelease || true
+
+      - name: Save APKs (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: app/build/outputs/apk/release/
+          if-no-files-found: ignore
