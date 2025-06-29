@@ -1,0 +1,119 @@
+# .github/workflows/build-battery-discharge-app.yml
+name: Build Battery Discharge APK
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        api-level: 34
+        build-tools: 34.0.0
+        
+    - name: Cache Gradle Dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          ${{ runner.os }}-gradle-
+          
+    - name: Make Gradlew Executable
+      run: chmod +x ./gradlew
+      
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
+      
+    - name: Build Release APK
+      run: ./gradlew assembleRelease
+      
+    - name: Sign APK
+      uses: r0adkll/sign-android-release@v1
+      id: sign_app
+      with:
+        releaseDirectory: app/build/outputs/apk/release
+        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+        alias: ${{ secrets.ALIAS }}
+        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
+        keyPassword: ${{ secrets.KEY_PASSWORD }}
+      env:
+        BUILD_TOOLS_VERSION: "34.0.0"
+        
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: battery-discharge-debug
+        path: app/build/outputs/apk/debug/app-debug.apk
+        
+    - name: Upload Release APK
+      uses: actions/upload-artifact@v3
+      with:
+        name: battery-discharge-release
+        path: ${{steps.sign_app.outputs.signedReleaseFile}}
+        
+    - name: Create Magisk Module
+      run: |
+        mkdir -p magisk-module/META-INF/com/google/android
+        mkdir -p magisk-module/system/app/BatteryDischarge
+        cp ${{steps.sign_app.outputs.signedReleaseFile}} magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
+        
+        # Create module.prop
+        cat > magisk-module/module.prop << EOF
+        id=battery_discharge_calc
+        name=Battery Discharge Calculator
+        version=v1.0
+        versionCode=1
+        author=YourName
+        description=Real-time battery discharge calculator for Galaxy S10+ Exynos
+        EOF
+        
+        # Create update-binary
+        cat > magisk-module/META-INF/com/google/android/update-binary << 'EOF'
+        #!/sbin/sh
+        OUTFD=$2
+        ZIPFILE=$3
+        ui_print() { echo -e "ui_print $1\nui_print" >> /proc/self/fd/$OUTFD; }
+        ui_print "Installing Battery Discharge Calculator..."
+        ui_print "Optimized for Galaxy S10+ Exynos (beyond2lte)"
+        package_extract_dir system /system
+        set_perm_recursive /system/app/BatteryDischarge 0 0 0755 0644
+        ui_print "Installation complete!"
+        EOF
+        
+        # Create updater-script
+        cat > magisk-module/META-INF/com/google/android/updater-script << EOF
+        #MAGISK
+        EOF
+        
+        chmod +x magisk-module/META-INF/com/google/android/update-binary
+        
+        # Create ZIP
+        cd magisk-module
+        zip -r ../battery-discharge-magisk.zip .
+        cd ..
+        
+    - name: Upload Magisk Module
+      uses: actions/upload-artifact@v3
+      with:
+        name: battery-discharge-magisk
+        path: battery-discharge-magisk.zip
