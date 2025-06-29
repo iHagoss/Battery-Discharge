@@ -45,30 +45,20 @@ jobs:
     - name: Build Release APK
       run: ./gradlew :app:assembleRelease
 
-    - name: Sign APK
-      uses: r0adkll/sign-android-release@v1
-      id: sign_app
-      with:
-        releaseDirectory: app/build/outputs/apk/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.ALIAS }}
-        keyStorePassword: ${{ secrets.KEY_STORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
-      env:
-        BUILD_TOOLS_VERSION: "34.0.0"
+    # Removed 'Sign APK' step as no keystore is available
 
-    - name: Upload Release APK
+    - name: Upload Unsigned Release APK
       uses: actions/upload-artifact@v4
       with:
-        name: battery-discharge-release
-        path: ${{steps.sign_app.outputs.signedReleaseFile}}
+        name: battery-discharge-release-unsigned
+        path: app/build/outputs/apk/release/app-release.apk
         retention-days: 30
 
     - name: Create Magisk Module
       run: |
         mkdir -p magisk-module/META-INF/com/google/android
         mkdir -p magisk-module/system/app/BatteryDischarge
-        cp ${{steps.sign_app.outputs.signedReleaseFile}} magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
+        cp app/build/outputs/apk/release/app-release.apk magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
 
         # Create module.prop
         cat > magisk-module/module.prop << EOF
@@ -126,7 +116,7 @@ jobs:
 
         # Load utility functions
         [ -f /data/adb/magisk/util_functions.sh ] && . /data/adb/magisk/util_functions.sh
-        [ $MAGISK_VER_CODE -gt 18100 ] && require_new_magisk || require_new_magisk() { ui_print "*******************************"; ui_print " Please install Magisk v19.0+! "; ui_print "*******************************"; exit 1; }
+        [ $MAGISK_VER_CODE -gt 18100 ] && require_new_magisk || require_new_magisk() { ui_print "*******************************"; ui_print " Please install Magisk v19.0+! "; ui_print "***************[...]
 
         #########################
         # Load package installer
