@@ -1,5 +1,0 @@
-bash
-mkdir -p Battery-Discharge/app/src/main/java/com/batterydischarge
-mkdir -p Battery-Discharge/app/src/main/res/{layout,values,drawable}
-mkdir -p Battery-Discharge/magisk_module/{META-INF/com/google/android,system/app/BatteryDischarge}
-mkdir -p Battery-Discharge/gradle/wrapper
