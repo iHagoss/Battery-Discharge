@@ -287,4 +287,23 @@ class BatteryHardwareManager(private val context: Context) {
             appendLine("Optimal Battery Path: $optimalBatteryPath")
             appendLine("Optimal Current Path: $optimalCurrentPath")
             appendLine("Optimal Capacity Path: $optimalCapacityPath")
-            appendLine("Design Capacity: ${DESIGN_CAPACITY_
+            appendLine("Design Capacity: ${DESIGN_CAPACITY_MAH}mAh")
+            appendLine("Device Model: SM-G975F (Galaxy S10+ Exynos)")
+            appendLine("Update Interval: ${UPDATE_INTERVAL_MS}ms")
+            
+            // Test all battery paths
+            appendLine("\n=== Available Battery Paths ===")
+            for (path in BATTERY_PATHS) {
+                val exists = File(path).exists()
+                appendLine("$path: ${if (exists) "✓" else "✗"}")
+                if (exists) {
+                    for (subFile in CURRENT_PATHS + CAPACITY_PATHS) {
+                        val subPath = "$path/$subFile"
+                        val subExists = File(subPath).exists()
+                        appendLine("  $subFile: ${if (subExists) "✓" else "✗"}")
+                    }
+                }
+            }
+        }
+    }
+}
