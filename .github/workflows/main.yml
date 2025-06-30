@@ -57,13 +57,13 @@ jobs:
 
           cat > magisk-module/module.prop <<EOF
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*' '**/gradle-wrapper.properties') }}
-name=Battery Discharge Calculator
-version=1.0
-versionCode=1
-author=ExtremeAndroid
-description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
-minMagisk=20400
-EOF
+          name=Battery Discharge Calculator
+          version=1.0
+          versionCode=1
+          author=ExtremeAndroid
+          description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
+          minMagisk=20400
+          EOF
 
           cat > magisk-module/service.sh <<'EOF'
 #!/system/bin/sh
