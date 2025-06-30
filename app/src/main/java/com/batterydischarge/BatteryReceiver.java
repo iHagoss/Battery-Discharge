@@ -1,4 +1,4 @@
-```java
+java
 package com.batterydischarge;
 
 import android.content.BroadcastReceiver;
@@ -23,4 +23,3 @@ public class BatteryReceiver extends BroadcastReceiver {
         }
     }
 }
-```
