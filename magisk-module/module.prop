@@ -1,1 +1,7 @@
-
+ini
+id=battery_discharge_mod
+name=Battery Discharge Time Display
+version=v1.0
+versionCode=1
+author=iHagoss
+description=Real-time battery discharge time estimation with root access for Galaxy S10+ beyond2lte
