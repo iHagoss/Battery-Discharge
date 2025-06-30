@@ -2,9 +2,9 @@ name: Build Battery Discharge APK
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -52,9 +52,11 @@ jobs:
       - name: Create Magisk Module
         run: |
           set -e
-          mkdir -p magisk-module/{META-INF/com/google/android,system/app/BatteryDischarge}
+          mkdir -p magisk-module/META-INF/com/google/android
+          mkdir -p magisk-module/system/app/BatteryDischarge
           cp app/build/outputs/apk/release/app-release.apk magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
 
+          # module.prop
           cat > magisk-module/module.prop <<EOF
 id=battery_discharge_calc
 name=Battery Discharge Calculator
@@ -65,21 +67,19 @@ description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond
 minMagisk=20400
 EOF
 
+          # service.sh
           cat > magisk-module/service.sh <<'EOF'
 #!/system/bin/sh
-
-# service script for perms & sysfs tweaks
 pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
 pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
-
 chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
 EOF
-
           chmod +x magisk-module/service.sh
 
+          # install.sh
           cat > magisk-module/install.sh <<'EOF'
 #!/sbin/sh
 ui_print "🔋 Installing Battery Discharge Calculator..."
@@ -90,9 +90,9 @@ pm install -r /data/local/tmp/BatteryDischarge.apk
 rm -f /data/local/tmp/BatteryDischarge.apk
 ui_print "✅ Installation complete!"
 EOF
-
           chmod +x magisk-module/install.sh
 
+          # update-binary
           cat > magisk-module/META-INF/com/google/android/update-binary <<'EOF'
 #!/sbin/sh
 umask 022
@@ -117,16 +117,16 @@ on_install
 set_permissions
 exit 0
 EOF
-
           chmod +x magisk-module/META-INF/com/google/android/update-binary
 
+          # updater-script
           cat > magisk-module/META-INF/com/google/android/updater-script <<EOF
 #MAGISK
 EOF
 
           cd magisk-module
           zip -r ../battery-discharge-magisk.zip .
-          cd - || true
+          cd ..
 
       - name: Upload Magisk Module
         uses: actions/upload-artifact@v4
