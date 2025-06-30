@@ -1,4 +1,4 @@
-```java
+java
 package com.batterymod.discharge;
 
 import android.util.Log;
@@ -75,4 +75,3 @@ android {
 dependencies {
     implementation 'androidx.core:core:1.8.0'
 }
-```
