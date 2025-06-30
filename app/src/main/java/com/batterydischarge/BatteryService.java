@@ -1,4 +1,4 @@
-```java
+java
 package com.batterymod.discharge;
 
 import android.app.Notification;
