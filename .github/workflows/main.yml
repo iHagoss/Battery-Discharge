@@ -24,8 +24,10 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       with:
-        api-level: 34
-        build-tools: 34.0.0
+        packages: |
+          platform-tools
+          platforms;android-34
+          build-tools;34.0.0
 
     - name: Cache Gradle Dependencies
       uses: actions/cache@v4
@@ -40,12 +42,8 @@ jobs:
     - name: Make Gradlew Executable
       run: chmod +x ./gradlew
 
-    # Debug build step skipped
-
     - name: Build Release APK
       run: ./gradlew :app:assembleRelease
-
-    # Removed 'Sign APK' step as no keystore is available
 
     - name: Upload Unsigned Release APK
       uses: actions/upload-artifact@v4
@@ -116,7 +114,7 @@ jobs:
 
         # Load utility functions
         [ -f /data/adb/magisk/util_functions.sh ] && . /data/adb/magisk/util_functions.sh
-        [ $MAGISK_VER_CODE -gt 18100 ] && require_new_magisk || require_new_magisk() { ui_print "*******************************"; ui_print " Please install Magisk v19.0+! "; ui_print "***************[...]
+        [ $MAGISK_VER_CODE -gt 18100 ] && require_new_magisk || require_new_magisk() { ui_print "*******************************"; ui_print " Please install Magisk v19.0+! "; ui_print "*******************************"; }
 
         #########################
         # Load package installer
@@ -136,10 +134,6 @@ jobs:
           set_perm_recursive $MODPATH 0 0 0755 0644
           set_perm_recursive $MODPATH/system/app/BatteryDischarge 0 0 0755 0644
         }
-
-        # Only some special files require specific permissions
-        # This function will be called after on_install is done
-        # The default permissions should be good enough for most cases
 
         print_modname() {
           ui_print "🔋 Battery Discharge Calculator"
