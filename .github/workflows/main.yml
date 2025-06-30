@@ -12,168 +12,139 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Setup Java JDK
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        packages: platform-tools,platforms;android-34,build-tools;34.0.0
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools,platforms;android-34,build-tools;34.0.0
 
-    - name: Cache Gradle Dependencies
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.gradle/caches
-          ~/.gradle/wrapper
-        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-        restore-keys: |
-          ${{ runner.os }}-gradle-
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-    - name: Make Gradlew Executable
-      run: chmod +x ./gradlew
+      - name: Make Gradlew Executable
+        run: chmod +x ./gradlew
 
-    - name: Build Release APK
-      run: ./gradlew :app:assembleRelease
+      - name: Build Release APK
+        run: ./gradlew :app:assembleRelease
 
-    - name: Upload Unsigned Release APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: battery-discharge-release-unsigned
-        path: app/build/outputs/apk/release/app-release.apk
-        retention-days: 30
+      - name: Upload Unsigned Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: battery-discharge-release-unsigned
+          path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
 
-    - name: Create Magisk Module
-      run: |
-        mkdir -p magisk-module/META-INF/com/google/android
-        mkdir -p magisk-module/system/app/BatteryDischarge
-        cp app/build/outputs/apk/release/app-release.apk magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
+      - name: Create Magisk Module
+        run: |
+          # prepare module layout
+          mkdir -p magisk-module/{META-INF/com/google/android,system/app/BatteryDischarge}
 
-        # Create module.prop
-        cat > magisk-module/module.prop << EOF
-        id=battery_discharge_calc
-        name=Battery Discharge Calculator
-        version=v1.0
-        versionCode=1
-        author=ExtremeAndroid
-        description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
-        minMagisk=20400
-        EOF
+          # copy built APK into module
+          cp app/build/outputs/apk/release/app-release.apk \
+             magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
 
-        # Create service.sh for root access
-        cat > magisk-module/service.sh << 'EOF'
-        #!/system/bin/sh
-        # Grant root permissions to battery discharge app
-        pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
-        pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
+          # module descriptor
+          cat > magisk-module/module.prop <<EOF
+id=battery_discharge_calc
+name=Battery Discharge Calculator
+version=v1.0
+versionCode=1
+author=ExtremeAndroid
+description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
+minMagisk=20400
+EOF
 
-        # Set SELinux context for battery access
-        chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
-        chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
-        chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
-        chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
-        EOF
+          # service script for perms & sysfs tweaks
+          cat > magisk-module/service.sh <<'EOF'
+#!/system/bin/sh
+pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
+pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
 
-        # Create install.sh
-        cat > magisk-module/install.sh << 'EOF'
-        #!/sbin/sh
-        ui_print "🔋 Installing Battery Discharge Calculator..."
-        ui_print "📱 Optimized for Galaxy S10+ Exynos (beyond2lte)"
-        ui_print "⚡ Features: Live current readings, Root integration"
-        ui_print "🎯 Compatible with Extreme Kernel & OneUI 7"
+chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
+chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
+chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
+chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
+EOF
 
-        # Install APK as system app
-        cp -f $MODPATH/system/app/BatteryDischarge/BatteryDischarge.apk /data/local/tmp/
-        pm install -r /data/local/tmp/BatteryDischarge.apk
-        rm -f /data/local/tmp/BatteryDischarge.apk
+          # install.sh invoked by update-binary
+          cat > magisk-module/install.sh <<'EOF'
+#!/sbin/sh
+ui_print "🔋 Installing Battery Discharge Calculator..."
+ui_print "📱 Optimized for Galaxy S10+ Exynos (beyond2lte)"
+ui_print "⚡ Features: Live current readings, Root integration"
 
-        ui_print "✅ Installation complete!"
-        ui_print "   Launch 'Battery Discharge' from app drawer"
-        EOF
+cp -f $MODPATH/system/app/BatteryDischarge/BatteryDischarge.apk /data/local/tmp/
+pm install -r /data/local/tmp/BatteryDischarge.apk
+rm -f /data/local/tmp/BatteryDischarge.apk
 
-        # Create update-binary
-        cat > magisk-module/META-INF/com/google/android/update-binary << 'EOF'
-        #!/sbin/sh
-        #################
-        # Initialization
-        #################
-        umask 022
-        OUTFD=$2
-        ZIPFILE=$3
+ui_print "✅ Installation complete!"
+EOF
 
-        mount /data 2>/dev/null
+          # Magisk’s update-binary
+          cat > magisk-module/META-INF/com/google/android/update-binary <<'EOF'
+#!/sbin/sh
+umask 022
+OUTFD=$2
+ZIPFILE=$3
 
-        # Load utility functions
-        [ -f /data/adb/magisk/util_functions.sh ] && . /data/adb/magisk/util_functions.sh
-        [ $MAGISK_VER_CODE -gt 18100 ] && require_new_magisk || require_new_magisk() { ui_print "*******************************"; ui_print " Please install Magisk v19.0+! "; ui_print "*******************************"; }
+# load Magisk util funcs & enforce v19+
+[ -f /data/adb/magisk/util_functions.sh ] && . /data/adb/magisk/util_functions.sh
+[ $MAGISK_VER_CODE -le 18100 ] && require_new_magisk
 
-        #########################
-        # Load package installer
-        #########################
-        LATESTARTSERVICE=true
-        REPLACE_EXAMPLE="
-        /system/app/Youtube
-        /system/priv-app/SystemUI
-        "
-        REPLACE="
-        "
+print_modname() {
+  ui_print "🔋 Battery Discharge Calculator (v1.0)"
+}
 
-        ##########
-        # Custom
-        ##########
-        set_permissions() {
-          set_perm_recursive $MODPATH 0 0 0755 0644
-          set_perm_recursive $MODPATH/system/app/BatteryDischarge 0 0 0755 0644
-        }
+on_install() {
+  ui_print "- Extracting module files"
+  unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2
+  ui_print "- Running install.sh"
+  . $MODPATH/install.sh
+}
 
-        print_modname() {
-          ui_print "🔋 Battery Discharge Calculator"
-          ui_print "   Galaxy S10+ Exynos Optimized"
-          ui_print "   Version: 1.0"
-        }
+set_permissions() {
+  set_perm_recursive $MODPATH 0 0 0755 0644
+}
 
-        on_install() {
-          ui_print "- Extracting module files"
-          unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2
+# run it
+print_modname
+on_install
+set_permissions
+exit 0
+EOF
 
-          # Run custom install script
-          if [ -f $MODPATH/install.sh ]; then
-            ui_print "- Running device-specific installation"
-            . $MODPATH/install.sh
-          fi
-        }
+          # no-op updater-script so Magisk won’t complain
+          cat > magisk-module/META-INF/com/google/android/updater-script <<EOF
+#MAGISK
+EOF
 
-        ##############
-        # Finalizing
-        ##############
-        $BOOTMODE || recovery_cleanup
-        rm -rf $MODPATH/META-INF 2>/dev/null
-        exit 0
-        EOF
+          # mark executables
+          chmod +x magisk-module/{service.sh,install.sh}
+          chmod +x magisk-module/META-INF/com/google/android/update-binary
 
-        # Create updater-script
-        cat > magisk-module/META-INF/com/google/android/updater-script << EOF
-        #MAGISK
-        EOF
+          # zip it up
+          cd magisk-module
+          zip -r ../battery-discharge-magisk.zip .
+          cd -
 
-        chmod +x magisk-module/META-INF/com/google/android/update-binary
-        chmod +x magisk-module/install.sh
-        chmod +x magisk-module/service.sh
-
-        # Create ZIP
-        cd magisk-module
-        zip -r ../battery-discharge-magisk.zip .
-        cd ..
-
-    - name: Upload Magisk Module
-      uses: actions/upload-artifact@v4
-      with:
-        name: battery-discharge-magisk
-        path: battery-discharge-magisk.zip
-        retention-days: 30
+      - name: Upload Magisk Module
+        uses: actions/upload-artifact@v4
+        with:
+          name: battery-discharge-magisk
+          path: battery-discharge-magisk.zip
+          retention-days: 30
