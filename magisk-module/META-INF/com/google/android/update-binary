@@ -1,1 +1,48 @@
+```bash
+#!/sbin/sh
 
+ZIPFILE="$3"
+OUTFD="$2"
+
+ui_print() {
+  echo "ui_print $1" > /proc/self/fd/$OUTFD
+  echo "ui_print" > /proc/self/fd/$OUTFD
+}
+
+TMPDIR=/dev/tmp
+INSTALLER=$TMPDIR/install
+MODPATH=/data/adb/modules/battery_discharge_mod
+
+rm -rf $TMPDIR 2>/dev/null
+mkdir -p $INSTALLER
+
+ui_print "************************************************"
+ui_print " Battery Discharge Time Display Module v1.0    "
+ui_print " For Galaxy S10+ (beyond2lte) - Rooted Devices "
+ui_print "************************************************"
+
+ui_print "- Extracting module files"
+unzip -o "$ZIPFILE" -d $INSTALLER >&2
+
+ui_print "- Checking device compatibility"
+DEVICE=$(getprop ro.product.device)
+if [ "$DEVICE" != "beyond2lte" ] && [ "$DEVICE" != "beyond2" ]; then
+    ui_print "! Warning: Device not Galaxy S10+ beyond2lte"
+    ui_print "! Module may not work correctly"
+fi
+
+ui_print "- Installing module"
+mkdir -p $MODPATH
+cp -rf $INSTALLER/* $MODPATH/
+
+ui_print "- Setting permissions"
+chmod 755 $MODPATH/service.sh
+chmod 755 $MODPATH/system/app/BatteryDischarge/BatteryDischarge.apk
+chmod 755 $MODPATH/system/app/BatteryDischarge/lib/arm64/libbattery.so
+
+ui_print "- Installation complete"
+ui_print "- Reboot required for activation"
+
+rm -rf $TMPDIR
+exit 0
+```
