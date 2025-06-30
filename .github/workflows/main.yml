@@ -66,14 +66,34 @@ jobs:
           EOF
 
           cat > magisk-module/service.sh <<'EOF'
+          cat > magisk-module/service.sh <<'EOF'
+
 #!/system/bin/sh
+
+# service script for perms & sysfs tweaks
 pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
+
 pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
+
 chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
 EOF
+
+chmod +x magisk-module/service.sh
+          
+#!/system/bin/sh
+pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
+pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
+
+chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
+chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
+chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
+chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
+EOF
+
+chmod +x magisk-module/service.sh
 
           cat > magisk-module/install.sh <<'EOF'
 #!/sbin/sh
