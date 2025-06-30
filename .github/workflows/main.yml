@@ -51,14 +51,10 @@ jobs:
 
       - name: Create Magisk Module
         run: |
-          # prepare module layout
+          set -e
           mkdir -p magisk-module/{META-INF/com/google/android,system/app/BatteryDischarge}
+          cp app/build/outputs/apk/release/app-release.apk magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
 
-          # copy built APK into module
-          cp app/build/outputs/apk/release/app-release.apk \
-             magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
-
-          # module descriptor
           cat > magisk-module/module.prop <<EOF
 id=battery_discharge_calc
 name=Battery Discharge Calculator
@@ -69,78 +65,61 @@ description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond
 minMagisk=20400
 EOF
 
-          # service script for perms & sysfs tweaks
           cat > magisk-module/service.sh <<'EOF'
 #!/system/bin/sh
 pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
 pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
-
 chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
 EOF
 
-          # install.sh invoked by update-binary
           cat > magisk-module/install.sh <<'EOF'
 #!/sbin/sh
 ui_print "🔋 Installing Battery Discharge Calculator..."
 ui_print "📱 Optimized for Galaxy S10+ Exynos (beyond2lte)"
 ui_print "⚡ Features: Live current readings, Root integration"
-
 cp -f $MODPATH/system/app/BatteryDischarge/BatteryDischarge.apk /data/local/tmp/
 pm install -r /data/local/tmp/BatteryDischarge.apk
 rm -f /data/local/tmp/BatteryDischarge.apk
-
 ui_print "✅ Installation complete!"
 EOF
 
-          # Magisk’s update-binary
           cat > magisk-module/META-INF/com/google/android/update-binary <<'EOF'
 #!/sbin/sh
 umask 022
 OUTFD=$2
 ZIPFILE=$3
-
-# load Magisk util funcs & enforce v19+
 [ -f /data/adb/magisk/util_functions.sh ] && . /data/adb/magisk/util_functions.sh
 [ $MAGISK_VER_CODE -le 18100 ] && require_new_magisk
-
 print_modname() {
   ui_print "🔋 Battery Discharge Calculator (v1.0)"
 }
-
 on_install() {
   ui_print "- Extracting module files"
   unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH >&2
   ui_print "- Running install.sh"
   . $MODPATH/install.sh
 }
-
 set_permissions() {
   set_perm_recursive $MODPATH 0 0 0755 0644
 }
-
-# run it
 print_modname
 on_install
 set_permissions
 exit 0
 EOF
 
-          # no-op updater-script so Magisk won’t complain
           cat > magisk-module/META-INF/com/google/android/updater-script <<EOF
 #MAGISK
 EOF
 
-          # mark executables
           chmod +x magisk-module/{service.sh,install.sh}
           chmod +x magisk-module/META-INF/com/google/android/update-binary
-
-          # zip it up
           cd magisk-module
           zip -r ../battery-discharge-magisk.zip .
-          cd -
+          cd - || true
 
       - name: Upload Magisk Module
         uses: actions/upload-artifact@v4
