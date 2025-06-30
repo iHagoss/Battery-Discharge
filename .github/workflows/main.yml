@@ -91,6 +91,8 @@ rm -f /data/local/tmp/BatteryDischarge.apk
 ui_print "✅ Installation complete!"
 EOF
 
+          chmod +x magisk-module/install.sh
+
           cat > magisk-module/META-INF/com/google/android/update-binary <<'EOF'
 #!/sbin/sh
 umask 022
@@ -116,12 +118,12 @@ set_permissions
 exit 0
 EOF
 
+          chmod +x magisk-module/META-INF/com/google/android/update-binary
+
           cat > magisk-module/META-INF/com/google/android/updater-script <<EOF
 #MAGISK
 EOF
 
-          chmod +x magisk-module/install.sh
-          chmod +x magisk-module/META-INF/com/google/android/update-binary
           cd magisk-module
           zip -r ../battery-discharge-magisk.zip .
           cd - || true
