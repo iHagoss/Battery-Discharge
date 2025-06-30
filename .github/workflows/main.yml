@@ -32,7 +32,7 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*','**/gradle-wrapper.properties') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*' '**/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
@@ -56,23 +56,20 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
 
           cat > magisk-module/module.prop <<EOF
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*' '**/gradle-wrapper.properties') }}
-          name=Battery Discharge Calculator
-          version=1.0
-          versionCode=1
-          author=ExtremeAndroid
-          description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
-          minMagisk=20400
-          EOF
+id=battery_discharge_calc
+name=Battery Discharge Calculator
+version=1.0
+versionCode=1
+author=ExtremeAndroid
+description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
+minMagisk=20400
+EOF
 
           cat > magisk-module/service.sh <<'EOF'
-          cat > magisk-module/service.sh <<'EOF'
-
 #!/system/bin/sh
 
 # service script for perms & sysfs tweaks
 pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
-
 pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
 
 chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
@@ -81,19 +78,7 @@ chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
 chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
 EOF
 
-chmod +x magisk-module/service.sh
-          
-#!/system/bin/sh
-pm grant com.batterydischarge.calculator android.permission.WRITE_SECURE_SETTINGS 2>/dev/null
-pm grant com.batterydischarge.calculator android.permission.DUMP 2>/dev/null
-
-chcon u:object_r:sysfs_batteryinfo:s0 /sys/class/power_supply/battery/* 2>/dev/null
-chmod 644 /sys/class/power_supply/battery/current_now 2>/dev/null
-chmod 644 /sys/class/power_supply/battery/charge_full_design 2>/dev/null
-chmod 644 /sys/class/power_supply/battery/capacity 2>/dev/null
-EOF
-
-chmod +x magisk-module/service.sh
+          chmod +x magisk-module/service.sh
 
           cat > magisk-module/install.sh <<'EOF'
 #!/sbin/sh
@@ -135,7 +120,7 @@ EOF
 #MAGISK
 EOF
 
-          chmod +x magisk-module/{service.sh,install.sh}
+          chmod +x magisk-module/install.sh
           chmod +x magisk-module/META-INF/com/google/android/update-binary
           cd magisk-module
           zip -r ../battery-discharge-magisk.zip .
