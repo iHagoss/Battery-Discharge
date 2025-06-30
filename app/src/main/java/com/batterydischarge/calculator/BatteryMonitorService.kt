@@ -1,4 +1,3 @@
-
 package com.batterydischarge.calculator
 
 import android.app.*
