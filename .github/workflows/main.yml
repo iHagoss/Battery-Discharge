@@ -56,9 +56,9 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk magisk-module/system/app/BatteryDischarge/BatteryDischarge.apk
 
           cat > magisk-module/module.prop <<EOF
-id=battery_discharge_calc
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*' '**/gradle-wrapper.properties') }}
 name=Battery Discharge Calculator
-version=v1.0
+version=1.0
 versionCode=1
 author=ExtremeAndroid
 description=Real-time battery discharge calculator for Galaxy S10+ Exynos beyond2lte with live current readings
